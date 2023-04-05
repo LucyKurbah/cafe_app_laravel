@@ -10,8 +10,4 @@ class Cart extends Model
     use HasFactory;
     protected $table = 'cart';
 
-    public function cart()
-    {
-        return $this->belongsTo(Cart::class);
-    }
 }

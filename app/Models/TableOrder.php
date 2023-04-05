@@ -5,8 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Item extends Model
+class TableOrder extends Model
 {
     use HasFactory;
-    protected $table = 'item';
+    protected $table = 'table_order';
+    protected $fillable = ['table_id'];
+
 }
