@@ -29,9 +29,14 @@ class CartController extends Controller
         $items = Cart::select('item_name', 'item_price','flag', 'item_id','item.path_file','item.featured','item.active','item_quantity')
                 ->join('item', 'cart.item_id', '=', 'item.id')
                 ->where('user_id', $user_id);
+
+        $conference = Cart::select('conference_name as item_name', 'conference_price as item_price','flag', 'conference_id as item_id','conference.path_file',DB::raw('true as featured'),DB::raw('true as active'),DB::raw('1 as item_quantity'))
+                ->join('conference', 'cart.conference_id', '=', 'conference.id')
+                ->where('user_id', $user_id);
         
         $results = $foods->union($tables)
                 ->union($items)
+                ->union($conference)
                 ->get();
         
         // $totalPrice = $results->sum('food_price') + $results->sum('table_price') + $results->sum('item_price');
@@ -64,11 +69,16 @@ class CartController extends Controller
         ->join('item', 'cart.item_id', '=', 'item.id')
         ->where('user_id', $userId);
 
+        $conference = Cart::select('conference_name', 'conference_price','flag', 'conference_id','conference.path_file',DB::raw('1 as conference_quantity'))
+        ->join('conference', 'cart.conference_id', '=', 'conference.id')
+        ->where('user_id', $user_id);
+
         $results = $foods->union($tables)
         ->union($items)
+        ->union($conference)
         ->get();
 
-        $totalPrice = $results->sum('food_price') + $results->sum('table_price') + $results->sum('item_price');
+        $totalPrice = $results->sum('food_price') + $results->sum('table_price') + $results->sum('item_price') + $results->sum('conference_price');
     }
     
     public function cartAdd(Request $request)
@@ -212,10 +222,10 @@ class CartController extends Controller
                 }
             }
             else if(isset($request->conference_id)){
-                $checkCartTable = Cart::where(['user_id' => $data['user_id']])->count('table_id');
+                
                 $checkCartConference = Cart::where(['conference_id' => $data['conference_id'],'user_id' => $data['user_id']])->count();
                 $etag = md5(json_encode($checkCartConference));
-                if($checkCartTable==0 && $checkCartConference==0){
+                if( $checkCartConference==0){
                     try {
                         $cart = new Cart;
                         $cart->conference_id = $data['conference_id'];

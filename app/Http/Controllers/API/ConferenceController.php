@@ -27,48 +27,53 @@ class ConferenceController extends Controller
     }
 
     public function checkConference(Request $request){
-        $conference_id   = $this->normalizeString($request->conference_id);
-        $conference_date = $this->normalizeString($request->conference_date);
-        $conference_time_from = $this->normalizeString($request->conference_time_from);
-        $conference_time_to = $this->normalizeString($request->conference_time_to);
-        $timestamp_from = strtotime($conference_time_from);
-
-        dd($timestamp_from);
-        // $sql = Order::where([['conference_id',$conference_id],
-        //                     ['conference_date',$conference_date],
-        //                      ['conference_time_from',$conference_time_from],
-        //                      ['conference_time_to',$conference_time_to]])
-        //                      ->count();
-        $sql=Order::leftJoin('conference_order', function($join) use ($conference_id) {
-                                $join->on('conference_order.order_id', '=', 'order.id')
-                                    ->where('conference_order.conference_id', '=', $conference_id);
-                            })
-                            -> where([['conference_order.conference_id',$conference_id],
-                            ['conference_order.conference_date',$conference_date],
-                             ['conference_order.conference_time_from',$conference_time_from],
-                             ['conference_order.conference_time_to',$conference_time_to]])
-                            ->count();
-        dd($sql);
-        $etag = md5(json_encode($sql));
-        if($sql==0){
-            $message = "Y";
-            return response()->json($message)->withHeaders([
+         $validator = Validator::make($request->all(), [
+            'conference_id' => 'required',
+            'conference_time_from' => 'required',
+            'conference_time_to' => 'required',
+            'conference_date' => 'required',
+            ]);
+            if($validator->fails()){
+            return response()->json("VE")->withHeaders([
                 'Cache-Control' => 'max-age=15, public',
                 'Expires' => gmdate('D, d M Y H:i:s', time() + 15) . ' IST',
                 'Vary' => 'Accept-Encoding',
-                'ETag' => $etag,
             ]);
         }
         else {
-            $message = "X";
-            return response()->json($message)->withHeaders([
-                'Cache-Control' => 'max-age=15, public',
-                'Expires' => gmdate('D, d M Y H:i:s', time() + 15) . ' IST',
-                'Vary' => 'Accept-Encoding',
-                'ETag' => $etag,
-            ]);
+            $conference_id   = $this->normalizeString($request->conference_id);
+            $conference_date = $request->conference_date;
+            $conference_time_from = $request->conference_time_from;
+            $conference_time_to = $request->conference_time_to;
+
+            $sql = Order::join('conference_order','conference_order.order_id', '=', 'public.order.id')
+                        ->where([
+                            ['conference_order.conference_id','=',$conference_id],
+                            ['conference_order.conference_date','=',$conference_date],
+                            ['conference_order.conference_time_from', '>=', $conference_time_from],
+                            ['conference_order.conference_time_to', '<=', $conference_time_to]
+                        ])->count();
+            dd($sql);
+            $etag = md5(json_encode($sql));
+            if($sql==0){
+                $message = "Y";
+                return response()->json($message)->withHeaders([
+                    'Cache-Control' => 'max-age=15, public',
+                    'Expires' => gmdate('D, d M Y H:i:s', time() + 15) . ' IST',
+                    'Vary' => 'Accept-Encoding',
+                    'ETag' => $etag,
+                ]);
+            }
+            else {
+                $message = "X";
+                return response()->json($message)->withHeaders([
+                    'Cache-Control' => 'max-age=15, public',
+                    'Expires' => gmdate('D, d M Y H:i:s', time() + 15) . ' IST',
+                    'Vary' => 'Accept-Encoding',
+                    'ETag' => $etag,
+                ]);
+            }
         }
-        
     }
 
     public function normalizeString($str){

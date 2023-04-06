@@ -21,6 +21,7 @@ class OrderController extends Controller
 {
   public function ValidateTable(Request $request)
   {
+   
     $validator = Validator::make($request->all(), [
       'table_id' => 'required',
       'timeFrom' => 'required',
@@ -39,7 +40,7 @@ class OrderController extends Controller
       $bookDate = $request->bookDate;
       $timeFrom = $request->timeFrom;
       $timeTo = $request->timeTo;
-      $sql = $sql = Order::join('table_order','table_order.order_id', '=', 'public.order.id')
+      $sql = Order::join('table_order','table_order.order_id', '=', 'public.order.id')
                     ->where([
                         ['table_order.table_id','=',$table_id],
                         ['table_order.table_date','=',$bookDate],
@@ -47,7 +48,7 @@ class OrderController extends Controller
                         ['table_order.table_time_to', '<=', $timeTo]
                     ])->count();
 
-       $etag = md5(json_encode($sq));
+       $etag = md5(json_encode($sql));
       if($sql==0)
       {
         return response()->json(200)->withHeaders([
@@ -157,6 +158,26 @@ class OrderController extends Controller
     }
   }
 
+  public function makePayment(Request $request)
+  {
+    $validator = Validator::make($request->all(), [
+      'user_id' => 'required',
+    ]);
+
+    if($validator->fails()){
+        return response()->json("VE")->withHeaders([
+          'Cache-Control' => 'max-age=15, public',
+          'Expires' => gmdate('D, d M Y H:i:s', time() + 15) . ' IST',
+          'Vary' => 'Accept-Encoding',
+      ]);
+    }
+    else {
+      $response = app()->call(OrderController::class.'@saveDetails', [
+        'user_id' => $request->user_id,]);
+      return $response;
+    }
+  }
+
   public function saveDetails(Request $request){
     $validator = Validator::make($request->all(), [
       'user_id' => 'required',
@@ -251,7 +272,7 @@ class OrderController extends Controller
                   default:
                       throw new Exception('Unknown flag: ' . $flag);
               }
-              // DB::commit();
+              DB::commit();
           } catch (Exception $e) {
               DB::rollback();
               throw $e;
@@ -266,17 +287,53 @@ class OrderController extends Controller
           'Vary' => 'Accept-Encoding',
           'ETag' => $etag,
       ]);  
+    }
   }
-}
 
   public function normalizeString($str){
-    $str = strip_tags($str);
-    $str = preg_replace('/[\r\n\t ]+/', ' ', $str);
-    $str = preg_replace('/[\"\*\/\:\<\>\?\'\|]+/', ' ', $str);
-    $str = html_entity_decode( $str, ENT_QUOTES, "utf-8" );
-    $str = htmlentities($str, ENT_QUOTES, "utf-8");
-    $str = mb_ereg_replace("/(&)([a-z])([a-z]+;)/i", '$2', $str);
-    $str = str_replace('%', '-', $str);
-   return $str;
-}
+      $str = strip_tags($str);
+      $str = preg_replace('/[\r\n\t ]+/', ' ', $str);
+      $str = preg_replace('/[\"\*\/\:\<\>\?\'\|]+/', ' ', $str);
+      $str = html_entity_decode( $str, ENT_QUOTES, "utf-8" );
+      $str = htmlentities($str, ENT_QUOTES, "utf-8");
+      $str = mb_ereg_replace("/(&)([a-z])([a-z]+;)/i", '$2', $str);
+      $str = str_replace('%', '-', $str);
+    return $str;
+  }
+
+  public function getOrders(Request $request)
+  {
+    $user_id='2';    
+    $foods = Order::select('food_name as item_name', 'food_price as item_price' ,'flag', 'food_id as item_id','food.path_file','food.featured','food.active','food_order.quantity as item_quantity','order.id')
+    ->join('food_order', 'food_order.order_id', '=', 'order.id')
+    ->join('food', 'food_order.food_id', '=', 'food.id')
+    ->where('user_id', $user_id);
+
+    $tables = Order::select('table_name as item_name', 'table_price as item_price','flag', 'table_id as item_id','table.path_file',DB::raw('true as featured'),DB::raw('true as active'),DB::raw('1 as item_quantity'),'order.id')
+        ->join('table_order', 'table_order.order_id', '=', 'order.id')
+        ->join('table', 'table_order.table_id', '=', 'table.id')
+        ->where('user_id', $user_id);
+
+    $items = Order::select('item_name', 'item_price','flag', 'item_id','item.path_file','item.featured','item.active','item_order.quantity as item_quantity','order.id')
+        ->join('item_order', 'item_order.order_id', '=', 'order.id')
+        ->join('item', 'item_order.item_id', '=', 'item.id')
+        ->where('user_id', $user_id);
+
+    $conference = Order::select('conference_name as item_name', 'conference_price as item_price','flag', 'conference_id as item_id','conference.path_file',DB::raw('true as featured'),DB::raw('true as active'),DB::raw('1 as item_quantity'),'order.id')
+        ->join('conference_order', 'conference_order.order_id', '=', 'order.id')
+        ->join('conference', 'conference_order.conference_id', '=', 'conference.id')
+        ->where('user_id', $user_id);
+
+    $results = $foods->union($tables)
+        ->union($items)
+        ->union($conference)
+        ->get();
+      $etag = md5(json_encode($results));
+      return response()->json($results)->withHeaders([
+        'Cache-Control' => 'max-age=15, public',
+        'Expires' => gmdate('D, d M Y H:i:s', time() + 15) . ' IST',
+        'Vary' => 'Accept-Encoding',
+        'ETag' => $etag,
+    ]); 
+  }
 }
