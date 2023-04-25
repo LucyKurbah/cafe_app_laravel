@@ -50,10 +50,13 @@ class ConferenceController extends Controller
                         ->where([
                             ['conference_order.conference_id','=',$conference_id],
                             ['conference_order.conference_date','=',$conference_date],
-                            ['conference_order.conference_time_from', '>=', $conference_time_from],
-                            ['conference_order.conference_time_to', '<=', $conference_time_to]
-                        ])->count();
-            dd($sql);
+                        ])
+                        ->where(function($query) use ($conference_time_from, $conference_time_to){
+                            $query->whereBetween('conference_order.conference_time_from', [$conference_time_from, $conference_time_to]);
+                            $query->orWhereBetween('conference_order.conference_time_to', [$conference_time_from, $conference_time_to]);
+                        })
+                        ->count();
+
             $etag = md5(json_encode($sql));
             if($sql==0){
                 $message = "Y";

@@ -418,7 +418,7 @@ class CartController extends Controller
                                         WHERE cart.user_id= :user_id', array(':user_id'=>$user_id));
             $getcartConferenceTotal = DB::Select('select sum(conference_price) as ConferencePrice  from cart 
                                         WHERE cart.user_id= :user_id', array(':user_id'=>$user_id));
-            $sum = $getcartItemTotal[0]->itemtotalprice + $getcartFoodTotal[0]->foodtotalprice +  $getcartTableTotal[0]->tabletotalprice + $getcartConferenceTotal[0]->conferenceprice;
+            $sum = floatval($getcartItemTotal[0]->itemtotalprice + $getcartFoodTotal[0]->foodtotalprice +  $getcartTableTotal[0]->tabletotalprice + $getcartConferenceTotal[0]->conferenceprice);
             $data = array($getcartItemTotal, $getcartFoodTotal, $getcartTableTotal,$getcartConferenceTotal);
             $etag = md5(json_encode($data));
             return response()->json($sum)->withHeaders([
